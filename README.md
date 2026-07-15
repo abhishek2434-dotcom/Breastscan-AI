@@ -1,7 +1,7 @@
 %%writefile README.md
-# EchoScan-AI: Breast Ultrasound Tumor Classification
+# BreastScan-AI: Breast Ultrasound Tumor Classification
 
-![EchoScan-AI Logo](https://raw.githubusercontent.com/EchoScan-AI/EchoScan-AI/main/docs/logo.png) <!-- Placeholder for a project logo if available -->
+![BreastScan-AI Logo](https://raw.githubusercontent.com/EchoScan-AI/EchoScan-AI/main/docs/logo.png) <!-- Placeholder for a project logo if available -->
 
 ## Table of Contents
 1. [Introduction](#1-introduction)
