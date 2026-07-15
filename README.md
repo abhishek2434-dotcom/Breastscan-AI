@@ -105,7 +105,6 @@ The project is designed to be highly interactive within Jupyter or Google Colab 
 | YOLO11 Nano           | Deep Learning   | 85.00        | —           | 2.6M       |
 | YOLO11 Small          | Deep Learning   | 89.10        | —           | 6.9M       |
 | Vision Transformer    | Deep Learning   | 92.31        | —           | 86M        |
-| **Ensemble Model**    | Hybrid DL/ML    | **90.50**    | —           | Varies     |
 
 **Key Insight:** Deep learning models, particularly the Vision Transformer and YOLO variants, significantly outperform classical machine learning approaches in breast ultrasound tumor classification, demonstrating their superior ability to extract and leverage complex image features.
 
