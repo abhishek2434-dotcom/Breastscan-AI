@@ -1,4 +1,4 @@
-%%writefile README.md
+
 # BreastScan-AI: Breast Ultrasound Tumor Classification
 
 ![BreastScan-AI Logo](https://raw.githubusercontent.com/EchoScan-AI/EchoScan-AI/main/docs/logo.png) <!-- Placeholder for a project logo if available -->
@@ -13,8 +13,7 @@
 7. [Model Performance](#7-model-performance)
 8. [Future Work](#8-future-work)
 9. [Contributing](#9-contributing)
-10. [License](#10-license)
-11. [Contact](#11-contact)
+10. [Contact](#10-contact)
 
 ---
 
@@ -122,10 +121,7 @@ The project is designed to be highly interactive within Jupyter or Google Colab 
 
 We welcome contributions to the EchoScan-AI project! If you're interested in improving the models, adding new features, or enhancing documentation, please refer to our `CONTRIBUTING.md` (to be created) for guidelines.
 
-## 10. License
-
-This project is licensed under the [MIT License](LICENSE.md) - see the `LICENSE.md` file for details.
-
-## 11. Contact
+## 10. Contact
 
 For any inquiries or collaborations, please open an issue in this repository.
+Contact: Abhishek K (ak5661@srmist.edu.in)
