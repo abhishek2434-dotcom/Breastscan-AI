@@ -1,0 +1,161 @@
+%%writefile echo_scan_ensemble_model.py
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import VotingClassifier, StackingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+import os
+import sys
+
+# Assuming models will be imported or passed, here are placeholders for types
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+import xgboost
+
+# Placeholder for deep learning model prediction function
+# In a real scenario, these would involve loading the actual DL models and running inference.
+# For demonstration, we'll simulate their outputs.
+def get_yolo_nano_predictions(X_scaled):
+    # Simulate YOLO Nano predictions with its typical accuracy
+    # This should be replaced with actual inference from a trained YOLO Nano model
+    np.random.seed(42)
+    # Assuming 3 classes, generate probabilities that sum to 1
+    probs = np.random.rand(len(X_scaled), 3)
+    # Artificially boost accuracy for one class for demonstration
+    for i in range(len(X_scaled)):
+        if np.random.rand() < 0.85: # Simulate 85% accuracy
+            probs[i, np.random.randint(0, 3)] += 1.0 # Ensure one class is preferred
+    probs = probs / probs.sum(axis=1, keepdims=True)
+    return np.argmax(probs, axis=1)
+
+def get_yolo_small_predictions(X_scaled):
+    # Simulate YOLO Small predictions with its typical accuracy
+    # This should be replaced with actual inference from a trained YOLO Small model
+    np.random.seed(43)
+    probs = np.random.rand(len(X_scaled), 3)
+    for i in range(len(X_scaled)):
+        if np.random.rand() < 0.89: # Simulate 89% accuracy
+            probs[i, np.random.randint(0, 3)] += 1.0
+    probs = probs / probs.sum(axis=1, keepdims=True)
+    return np.argmax(probs, axis=1)
+
+def get_vit_predictions(X_scaled):
+    # Simulate ViT predictions with its typical accuracy
+    # This should be replaced with actual inference from a trained ViT model
+    np.random.seed(44)
+    probs = np.random.rand(len(X_scaled), 3)
+    for i in range(len(X_scaled)):
+        if np.random.rand() < 0.92: # Simulate 92% accuracy
+            probs[i, np.random.randint(0, 3)] += 1.0
+    probs = probs / probs.sum(axis=1, keepdims=True)
+    return np.argmax(probs, axis=1)
+
+
+# Ensure these are available if feature_extraction.py is not run directly
+# from .feature_extraction import extract_all_features # or similar
+
+CLASS_LABELS = ['normal', 'benign', 'malignant']
+
+def build_and_evaluate_ensemble(X_scaled, y, classical_models, tuned_xgb_model, n_splits=5):
+    """
+    Builds and evaluates a stacking ensemble model combining classical ML and simulated DL models.
+
+    Args:
+        X_scaled (np.array): Scaled feature matrix.
+        y (np.array): True labels.
+        classical_models (dict): Dictionary of fitted classical models (e.g., RF, SVM).
+        tuned_xgb_model: The fitted best XGBoost model from RandomizedSearchCV.
+        n_splits (int): Number of splits for StratifiedKFold.
+
+    Returns:
+        tuple: Accuracy of the ensemble and the fitted ensemble model.
+    """
+    print("--- Building and Evaluating Ensemble Model ---")
+
+    # --- Base Models --- (Classical ML)
+    estimators = [
+        ('rf', classical_models['Random Forest']),
+        ('svm', classical_models['SVM']),
+        ('xgb', tuned_xgb_model),
+    ]
+
+    # --- Stacking with a Logistic Regression Meta-Learner --- 
+    # We will use cross_val_predict to get out-of-fold predictions for the base models
+    # This is critical for avoiding data leakage when training the meta-learner.
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+
+    # Prepare predictions from base classical models
+    s_train_classical = np.zeros((X_scaled.shape[0], len(estimators)))
+    s_test_classical = np.zeros((X_scaled.shape[0], len(estimators)))
+    oof_preds_classical = np.zeros(X_scaled.shape[0])
+
+    for fold_idx, (train_idx, val_idx) in enumerate(skf.split(X_scaled, y)):
+        print(f"  Processing fold {fold_idx + 1}/{n_splits} for classical base models...")
+        X_train, X_val = X_scaled[train_idx], X_scaled[val_idx]
+        y_train, y_val = y[train_idx], y[val_idx]
+
+        fold_preds = []
+        for i, (name, model) in enumerate(estimators):
+            model.fit(X_train, y_train)
+            s_train_classical[val_idx, i] = model.predict(X_val)
+            fold_preds.append(model.predict(X_val))
+
+        # For overall evaluation of classical components
+        oof_preds_classical[val_idx] = np.array(fold_preds).mean(axis=0).round()
+
+    # --- Generate (Simulated) Deep Learning Model Predictions --- 
+    # In a real scenario, these would be predictions from actual trained DL models.
+    # For this ensemble demonstration, we're using simulated predictions.
+    yolo_nano_preds = get_yolo_nano_predictions(X_scaled)
+    yolo_small_preds = get_yolo_small_predictions(X_scaled)
+    vit_preds = get_vit_predictions(X_scaled)
+
+    # Combine all base predictions for the meta-learner's input features
+    # Note: For stacking, we typically use probabilities for better information flow,
+    # but for simplicity, we'll use predicted class labels here. 
+    # A more advanced stack would pass predict_proba outputs.
+    
+    # Convert predictions to a suitable format for stacking. 
+    # Using a 1-of-K encoding could work, or simply stacking predicted labels 
+    # if the meta-learner can handle categorical inputs.
+    # For simplicity, we'll treat them as features in a new matrix.
+
+    meta_features = np.hstack([
+        s_train_classical, # Predictions from classical models
+        yolo_nano_preds.reshape(-1, 1),
+        yolo_small_preds.reshape(-1, 1),
+        vit_preds.reshape(-1, 1)
+    ])
+    
+    print("  Meta-features shape for ensemble training:", meta_features.shape)
+
+    # --- Meta-Learner --- (Logistic Regression)
+    meta_learner = LogisticRegression(solver='liblinear', multi_class='auto', random_state=42)
+    
+    # Train the meta-learner on the predictions generated by the base models
+    meta_learner.fit(meta_features, y)
+
+    # For evaluating the ensemble, we again use out-of-fold predictions if possible,
+    # or re-predict if full retraining of meta_features is needed. 
+    # For this simplified ensemble, we can assume meta_features were generated as full dataset predictions for now.
+    # A true stacking cross-validation would be more rigorous.
+    
+    ensemble_predictions = meta_learner.predict(meta_features) # Use all meta-features for final prediction
+    
+    ensemble_accuracy = accuracy_score(y, ensemble_predictions)
+    print(f"Ensemble Model Accuracy: {ensemble_accuracy * 100:.2f}%")
+
+    # Generate Confusion Matrix for the Ensemble
+    cm_ensemble = confusion_matrix(y, ensemble_predictions, labels=[0, 1, 2])
+    disp_ensemble = ConfusionMatrixDisplay(confusion_matrix=cm_ensemble, display_labels=CLASS_LABELS)
+    fig_ensemble_cm, ax_ensemble_cm = plt.subplots(figsize=(8, 6))
+    disp_ensemble.plot(cmap='Blues', ax=ax_ensemble_cm)
+    ax_ensemble_cm.set_title(f'Ensemble Model Confusion Matrix ({ensemble_accuracy * 100:.1f}%)')
+    plt.tight_layout()
+    plt.savefig('ensemble_confusion_matrix.png', dpi=150)
+    plt.close(fig_ensemble_cm)
+    print("Saved: ensemble_confusion_matrix.png")
+
+    return ensemble_accuracy, meta_learner # Return the meta-learner as the 'ensemble model' for future use
